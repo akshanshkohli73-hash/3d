@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { CHARACTERS_DATA } from '@/data/characters';
+import { CharacterAssetResolver } from '@/services/characterAssets';
 import { useAccount } from '@/services/accountStore';
 import {
   Users,
@@ -95,14 +96,19 @@ export default function CharactersPage() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
-                    char.element === 'Pyro' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
-                    char.element === 'Hydro' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
-                    char.element === 'Electro' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-                    char.element === 'Anemo' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                    'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                  }`}>
-                    {char.element.substring(0, 2)}
+                  <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0">
+                    <img
+                      src={CharacterAssetResolver.getAssets(char.id).icon}
+                      alt={char.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback on image load error
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="absolute bottom-0 right-0 bg-slate-950/80 px-1 py-0.5 text-[9px] font-bold text-amber-400 border-tl rounded-tl">
+                      {char.rarity}★
+                    </div>
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">

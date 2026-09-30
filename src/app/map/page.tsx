@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { MAP_MARKERS_DATA } from '@/data';
 import {
   MapPin,
@@ -10,8 +11,31 @@ import {
   Navigation,
   CheckCircle2,
   Filter,
-  Route
+  Route,
+  Compass
 } from 'lucide-react';
+
+// Dynamically import Leaflet components to avoid SSR issues
+const MapContainer = dynamic(
+  () => import('react-leaflet').then(mod => mod.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then(mod => mod.TileLayer),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import('react-leaflet').then(mod => mod.Marker),
+  { ssr: false }
+);
+const Popup = dynamic(
+  () => import('react-leaflet').then(mod => mod.Popup),
+  { ssr: false }
+);
+const Polyline = dynamic(
+  () => import('react-leaflet').then(mod => mod.Polyline),
+  { ssr: false }
+);
 
 export default function InteractiveMapPage() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -19,6 +43,11 @@ export default function InteractiveMapPage() {
   const [aiSpatialQuery, setAiSpatialQuery] = useState('');
   const [selectedMarker, setSelectedMarker] = useState<any>(MAP_MARKERS_DATA[0]);
   const [routeActive, setRouteActive] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const filteredMarkers = MAP_MARKERS_DATA.filter(m => {
     const matchesCat = selectedCategory === 'ALL' || m.category === selectedCategory;
@@ -29,17 +58,20 @@ export default function InteractiveMapPage() {
     return matchesCat && matchesReg && matchesQuery;
   });
 
+  // Calculate route positions
+  const routePositions = filteredMarkers.slice(0, 4).map(m => [m.location[0], m.location[1]] as [number, number]);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
           <h1 className="text-2xl font-black text-slate-100 tracking-tight flex items-center gap-2.5">
-            <MapPin className="w-6 h-6 text-amber-400" />
-            <span>INTERACTIVE TEYVAT MAP & AI SPATIAL SEARCH</span>
+            <Compass className="w-6 h-6 text-amber-400" />
+            <span>REAL INTERACTIVE TEYVAT MAP & SPATIAL ASSISTANT</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Explore Teyvat markers, materials, local specialties, and generate AI optimized farming routes.
+            Real Leaflet map engine with Teyvat geography, marker layers, material filtering, and AI route generation.
           </p>
         </div>
 
@@ -50,7 +82,7 @@ export default function InteractiveMapPage() {
             type="text"
             value={aiSpatialQuery}
             onChange={e => setAiSpatialQuery(e.target.value)}
-            placeholder='AI Spatial: "Where can I find Silk Flowers?"'
+            placeholder='AI Spatial: "Find Silk Flowers in Liyue"'
             className="bg-transparent text-xs text-slate-100 focus:outline-none flex-1"
           />
           <button
@@ -62,7 +94,7 @@ export default function InteractiveMapPage() {
         </div>
       </div>
 
-      {/* Main Canvas & Inspector Layout */}
+      {/* Main Map Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Layer Filters Sidebar */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 space-y-4 lg:col-span-1">
@@ -70,7 +102,7 @@ export default function InteractiveMapPage() {
             <Layers className="w-4 h-4" /> MAP LAYERS
           </span>
 
-          <div className="space-y-2 text-xs">
+          <div className="space-y-1.5 text-xs">
             {['ALL', 'LocalSpecialty', 'Boss', 'Domain', 'Statue', 'Teleport'].map(cat => (
               <button
                 key={cat}
@@ -102,55 +134,67 @@ export default function InteractiveMapPage() {
           </div>
         </div>
 
-        {/* Interactive Map Visualizer Canvas */}
-        <div className="lg:col-span-3 bg-slate-950 border border-slate-800 rounded-3xl p-6 relative min-h-[500px] flex flex-col justify-between overflow-hidden shadow-2xl">
+        {/* Interactive Leaflet Map Canvas */}
+        <div className="lg:col-span-3 bg-slate-950 border border-slate-800 rounded-3xl p-4 relative min-h-[550px] flex flex-col justify-between overflow-hidden shadow-2xl">
           {/* Top Bar Stats */}
-          <div className="flex items-center justify-between bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-800 z-10">
+          <div className="flex items-center justify-between bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-800 z-10 mb-2">
             <span className="text-xs font-bold text-slate-200">
-              Showing {filteredMarkers.length} Markers
+              Active Markers: {filteredMarkers.length}
             </span>
             {routeActive && (
               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/30">
-                Optimized Route Active (3 Stops)
+                Route Active ({routePositions.length} Stops)
               </span>
             )}
           </div>
 
-          {/* Canvas Simulation Overlay with Markers */}
-          <div className="relative w-full h-[380px] bg-[#111628] rounded-2xl border border-slate-800/80 overflow-hidden my-4 flex items-center justify-center">
-            {/* Background Texture grid */}
-            <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
+          {/* Leaflet Map Integration */}
+          <div className="relative w-full h-[450px] rounded-2xl border border-slate-800 overflow-hidden my-2">
+            {isClient ? (
+              <MapContainer
+                center={[30, 115]}
+                zoom={4}
+                scrollWheelZoom={true}
+                className="w-full h-full z-0"
+              >
+                <TileLayer
+                  attribution='&copy; Genshin Impact Map / TEYVAT AI Spatial System'
+                  url="https://map-tiles.hoyolab.com/genshin/{z}/{x}/{y}.jpg"
+                />
+                {filteredMarkers.map(marker => (
+                  <Marker
+                    key={marker.id}
+                    position={[marker.location[0], marker.location[1]]}
+                    eventHandlers={{
+                      click: () => setSelectedMarker(marker),
+                    }}
+                  >
+                    <Popup>
+                      <div className="p-1 text-xs">
+                        <strong className="block font-bold text-slate-900">{marker.title}</strong>
+                        <span className="text-slate-600">{marker.category} • {marker.region}</span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
 
-            {/* Simulated Map Markers */}
-            {filteredMarkers.map((marker, idx) => {
-              const isSelected = selectedMarker?.id === marker.id;
-              const posX = marker.location[0];
-              const posY = marker.location[1];
-
-              return (
-                <div
-                  key={marker.id}
-                  onClick={() => setSelectedMarker(marker)}
-                  style={{ left: `${posX}%`, top: `${posY}%` }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all ${
-                    isSelected ? 'scale-125 z-20' : 'hover:scale-110 z-10'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl flex items-center justify-center font-bold text-[10px] shadow-lg ${
-                    isSelected
-                      ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-500/30'
-                      : 'bg-slate-900 text-amber-300 border border-amber-500/40'
-                  }`}>
-                    <MapPin className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-              );
-            })}
+                {routeActive && routePositions.length > 1 && (
+                  <Polyline
+                    positions={routePositions}
+                    pathOptions={{ color: '#f59e0b', weight: 4, dashArray: '8, 8' }}
+                  />
+                )}
+              </MapContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-xs font-mono">
+                Loading Teyvat Map Engine...
+              </div>
+            )}
           </div>
 
           {/* Marker Inspector Bottom Card */}
           {selectedMarker && (
-            <div className="bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between z-10">
+            <div className="bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between z-10 mt-2">
               <div className="space-y-0.5">
                 <span className="text-[10px] font-bold text-amber-300 uppercase">
                   {selectedMarker.category} • {selectedMarker.region}
@@ -164,7 +208,7 @@ export default function InteractiveMapPage() {
                 className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5"
               >
                 <Navigation className="w-3.5 h-3.5" />
-                <span>Add to Route</span>
+                <span>{routeActive ? 'Clear Route' : 'Generate Route'}</span>
               </button>
             </div>
           )}

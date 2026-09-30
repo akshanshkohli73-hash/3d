@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import 'leaflet/dist/leaflet.css';
 import './globals.css';
 import { AccountProvider } from '@/services/accountStore';
 import { AppShell } from '@/components/layout/AppShell';
